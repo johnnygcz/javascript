@@ -6,30 +6,27 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
-app.use(bodyParser.json({ limit: "50mb" })); // JSON parser
-app.use(bodyParser.text({ type: "text/plain", limit: "50mb" })); // Plain text parser
+app.use(bodyParser.text({ type: "text/plain", limit: "50mb" }));
 
-// Route to execute JavaScript code
-app.post("/execute", (req, res) => {
-    // Get the JavaScript code from the body of the request
-    const jsCode = req.body;
+// POST /execute endpoint to run JavaScript code
+app.post("/execute", async (req, res) => {
+    const jsCode = req.body; // Get the JavaScript code from the request body
 
-    // Check if the code was provided
-    if (!jsCode || jsCode.trim() === "") {
+    // Check if the code is provided
+    if (!jsCode) {
         return res.status(400).json({ error: "No JavaScript code provided." });
     }
 
     try {
-        // Execute the JavaScript code using `eval` (for demonstration purposes)
-        const result = eval(jsCode);
-        return res.status(200).json({ result: result });
+        // Evaluate the JavaScript code safely (consider security implications of eval)
+        const result = eval(jsCode); // Be cautious with eval in production code
+        res.json({ result }); // Send the result back as JSON
     } catch (error) {
-        // Handle errors during execution
-        return res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message }); // Send error message if evaluation fails
     }
 });
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    // Server is running
 });
