@@ -1,76 +1,60 @@
 require('dotenv').config();
 const express = require("express");
-const bodyParser = require("body-parser");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Configure express to handle larger payloads and preserve raw body
-app.use(express.json({
-    limit: '50mb',
-    verify: (req, res, buf) => {
-        req.rawBody = buf.toString();
-    }
+// Raw body parser middleware
+app.use(express.raw({
+    type: '*/*',
+    limit: '50mb'
 }));
 
-// Configure body-parser with proper encoding
-app.use(bodyParser.text({ 
-    type: "text/plain", 
-    limit: "50mb",
-    verify: (req, res, buf) => {
-        req.rawBody = buf.toString();
-    }
-}));
-
-// Add middleware to handle content type negotiation
+// Middleware to handle the raw body
 app.use((req, res, next) => {
-    // Preserve original characters in the body
     if (req.method === 'POST') {
-        req.body = req.rawBody || req.body;
+        try {
+            // Convert Buffer to string and handle encoding
+            req.body = req.body.toString('utf8');
+            // Normalize line endings
+            req.body = req.body.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        } catch (error) {
+            console.error('Body parsing error:', error);
+            return res.status(400).json({ error: 'Invalid body content' });
+        }
     }
     next();
 });
 
 // POST /execute endpoint for executing JavaScript code
 app.post("/execute", async (req, res) => {
-    let jsCode = req.body;
+    const jsCode = req.body;
     
     if (!jsCode) {
         return res.status(400).json({ error: "No JavaScript code provided." });
     }
 
     try {
-        // Handle different input types
-        if (typeof jsCode === 'object') {
-            jsCode = JSON.stringify(jsCode);
-        }
-
-        // Ensure proper string handling
-        jsCode = jsCode.toString();
-        
-        // Execute the code (be cautious with eval)
+        console.log('Received code:', jsCode); // Debug log
         const result = eval(jsCode);
-        
-        // Handle different types of results
-        const response = {
-            result: typeof result === 'undefined' ? null : result
-        };
-
-        res.json(response);
+        res.json({ 
+            result,
+            receivedCode: jsCode // Debug info
+        });
     } catch (error) {
+        console.error('Execution error:', error);
         res.status(500).json({ 
             error: error.message,
-            details: error.stack
+            receivedCode: jsCode // Debug info
         });
     }
 });
 
-// Error handling middleware
+// Global error handler
 app.use((error, req, res, next) => {
     console.error('Server Error:', error);
     res.status(500).json({
         error: 'Internal Server Error',
-        message: error.message,
-        details: error.stack
+        message: error.message
     });
 });
 
